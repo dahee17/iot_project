@@ -1,0 +1,87 @@
+import RPi.GPIO as GPIO
+import time
+from RPLCD.i2c import CharLCD
+import threading
+
+GPIO.setmode(GPIO.BCM)
+
+# --- 핀 설정 ---
+TRIG = 23
+ECHO = 24
+BUZZER = 12
+SERVO = 18
+
+GPIO.setup(TRIG, GPIO.OUT)
+GPIO.setup(ECHO, GPIO.IN)
+GPIO.setup(BUZZER, GPIO.OUT)
+GPIO.setup(SERVO, GPIO.OUT)
+
+# --- PWM 서보 ---
+pwm_servo = GPIO.PWM(SERVO, 50)
+pwm_servo.start(0)
+
+# --- LCD ---
+lcd = CharLCD('PCF8574', 0x27)  # I2C 주소 확인
+
+# --- 함수 ---
+def lcd_task():
+    while True:
+        lcd.clear()
+        lcd.write_string("LCD Test Running")
+        lcd.cursor_pos = (1,0)
+        lcd.write_string("Line 2 OK")
+        time.sleep(1)
+
+def servo_task():
+    while True:
+        pwm_servo.ChangeDutyCycle(2.5)  # 0도
+        time.sleep(0.5)
+        pwm_servo.ChangeDutyCycle(7.5)  # 90도
+        time.sleep(0.5)
+        pwm_servo.ChangeDutyCycle(2.5)  # 0도
+        time.sleep(0.5)
+        pwm_servo.ChangeDutyCycle(0)    # PWM 끄기
+
+def ultrasonic_task():
+    while True:
+        GPIO.output(TRIG, True)
+        time.sleep(0.00001)
+        GPIO.output(TRIG, False)
+
+        while GPIO.input(ECHO) == 0:
+            pulse_start = time.time()
+        while GPIO.input(ECHO) == 1:
+            pulse_end = time.time()
+
+        distance = (pulse_end - pulse_start) * 17150
+        distance = round(distance, 2)
+        print(f"Distance: {distance} cm")
+        time.sleep(0.5)
+
+def buzzer_task():
+    while True:
+        GPIO.output(BUZZER, True)
+        time.sleep(0.2)
+        GPIO.output(BUZZER, False)
+        time.sleep(0.8)
+
+# --- 스레드 시작 ---
+try:
+    threads = []
+    threads.append(threading.Thread(target=lcd_task))
+    threads.append(threading.Thread(target=servo_task))
+    threads.append(threading.Thread(target=ultrasonic_task))
+    threads.append(threading.Thread(target=buzzer_task))
+
+    for t in threads:
+        t.start()
+
+    # 메인 스레드는 그냥 대기
+    while True:
+        time.sleep(1)
+
+except KeyboardInterrupt:
+    print("Cleaning up GPIO...")
+    pwm_servo.stop()
+    GPIO.cleanup()
+    lcd.clear()
