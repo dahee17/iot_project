@@ -1,0 +1,9 @@
+import json
+
+
+schedul = {"hour": 14, "minute": 45}
+
+
+with open("schedule.json", "w", encoding="utf-8") as f:
+    json.dump(schedule, f, ensure_ascii=False, indent=4)
+
