@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>배급 시간 설정</title>
+    <title>set the distribution time</title>
     <style>
         body {
             font-family: Arial;
@@ -36,16 +36,16 @@
 
 <body>
     <div class="box">
-        <h2>배급 시간 설정</h2>
+        <h2>Time Settings</h2>
 
         <form method="post">
-            시: <input type="number" name="hour" min="0" max="23" value="{{schedule.hour}}"><br>
-            분: <input type="number" name="minute" min="0" max="59" value="{{schedule.minute}}"><br>
+            HOUR: <input type="number" name="hour" min="0" max="23" value="{{schedule.hour}}"><br>
+            MINUTE: <input type="number" name="minute" min="0" max="59" value="{{schedule.minute}}"><br>
 
-            <button>저장</button>
+            <button>SAVE</button>
         </form>
 
-        <p>현재 설정 시간:<br>
+        <p> YOUR SCHEDULE:<br>
         <strong>{{'%02d' % schedule.hour}} : {{'%02d' % schedule.minute}}</strong></p>
     </div>
 </body>
