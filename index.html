@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>배급 시간 설정</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f7f7f7;
+            padding: 40px;
+        }
+        .box {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 300px;
+            margin: auto;
+            box-shadow: 0px 0px 15px #ccc;
+        }
+        input {
+            width: 80px;
+            padding: 5px;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 15px;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        p { font-size: 18px; }
+    </style>
+</head>
+
+<body>
+    <div class="box">
+        <h2>배급 시간 설정</h2>
+
+        <form method="post">
+            시: <input type="number" name="hour" min="0" max="23" value="{{schedule.hour}}"><br>
+            분: <input type="number" name="minute" min="0" max="59" value="{{schedule.minute}}"><br>
+
+            <button>저장</button>
+        </form>
+
+        <p>현재 설정 시간:<br>
+        <strong>{{'%02d' % schedule.hour}} : {{'%02d' % schedule.minute}}</strong></p>
+    </div>
+</body>
+</html>
