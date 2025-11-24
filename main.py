@@ -6,13 +6,11 @@ from datetime import datetime
 
 from webapp import start_flask
 
-# ---------------------------------------------------------
-# GPIO 핀 설정
-# ---------------------------------------------------------
+# GPIO 핀 설정 (BCM)
 SERVO_PIN = 18
-BUZZER_PIN = 23
-TRIG = 24
-ECHO = 25
+BUZZER_PIN = 15
+TRIG = 23
+ECHO = 24
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(SERVO_PIN, GPIO.OUT)
@@ -23,9 +21,7 @@ GPIO.setup(ECHO, GPIO.IN)
 servo = GPIO.PWM(SERVO_PIN, 50)
 servo.start(0)
 
-# ---------------------------------------------------------
 # LCD (I2C 1602)
-# ---------------------------------------------------------
 import smbus
 I2C_ADDR = 0x27
 LCD_WIDTH = 16
@@ -44,32 +40,49 @@ def lcd_text(text, line):
         bus.write_byte(I2C_ADDR, 1 | ord(ch))
         time.sleep(0.001)
 
-# ---------------------------------------------------------
 # 서보 모터 제어
-# ---------------------------------------------------------
 def servo_open():
-    servo.ChangeDutyCycle(7)  # 약 90도
+    servo.ChangeDutyCycle(7)
     time.sleep(1)
 
 def servo_close():
-    servo.ChangeDutyCycle(2)  # 약 0도
+    servo.ChangeDutyCycle(2)
     time.sleep(1)
 
-# ---------------------------------------------------------
+
 # 부저
-# ---------------------------------------------------------
 def beep():
     GPIO.output(BUZZER_PIN, 1)
     time.sleep(0.2)
     GPIO.output(BUZZER_PIN, 0)
 
-# ---------------------------------------------------------
+
+# 부저 멜로디 (도-미-솔-높은도)
+def play_melody():
+    buz = GPIO.PWM(BUZZER_PIN, 440)  
+    buz.start(50)  
+
+    notes = [
+        (262, 0.4),  
+        (330, 0.4),  
+        (392, 0.4),  
+        (523, 0.4)   
+    ]
+
+    for freq, duration in notes:
+        buz.ChangeFrequency(freq)
+        time.sleep(duration)
+
+    buz.stop()
+
 # 초음파 거리 측정
-# ---------------------------------------------------------
 def get_distance():
     GPIO.output(TRIG, 1)
     time.sleep(0.00001)
     GPIO.output(TRIG, 0)
+
+    start = time.time()
+    end = time.time()
 
     while GPIO.input(ECHO) == 0:
         start = time.time()
@@ -79,46 +92,64 @@ def get_distance():
 
     return (end - start) * 34300 / 2
 
-# ---------------------------------------------------------
 # 메인 루프
-# ---------------------------------------------------------
 def main_loop():
+    last_minute_displayed = None
+
     while True:
+        # 스케줄 읽기
         with open("schedule.json", "r") as f:
             sc = json.load(f)
 
         now = datetime.now()
         schedule_str = f"{sc['hour']:02d}:{sc['minute']:02d}"
 
-        # --------- 초음파 감지 (15cm 이하) ----------
+        # 1) 초음파 감지시 (15cm 이하)
         dist = get_distance()
         if dist < 15:
             remain = (sc["hour"]*60 + sc["minute"]) - (now.hour*60 + now.minute)
-            rem = max(remain, 0)
+            remain = max(remain, 0)
+
             lcd_text(f"Next {schedule_str}", 0)
-            lcd_text(f"{rem} min left", 1)
+            lcd_text(f"{remain} min left", 1)
+
             beep()
             time.sleep(2)
+            continue   
 
-        # --------- 배급 시간 도달 ----------
-        if now.hour == sc["hour"] and now.minute == sc["minute"] and now.second == 0:
+        # 2) 배급 시간 
+        if (now.hour == sc["hour"] and 
+            now.minute == sc["minute"] and 
+            now.second == 0):
+
             lcd_text("FEEDING NOW!", 0)
+            play_melody()
             servo_open()
             time.sleep(3)
             servo_close()
+            time.sleep(1)
+            continue
 
-        time.sleep(0.5)
+        # 3) 기본 상태
+        if last_minute_displayed != now.minute:
+            last_minute_displayed = now.minute
 
-# ---------------------------------------------------------
-# Flask 서버는 스레드로 실행
-# ---------------------------------------------------------
+            current_time = f"Time {now.hour:02d}:{now.minute:02d}"
+            next_time = f"Next {schedule_str}"
+
+            lcd_text(current_time, 0)
+            lcd_text(next_time, 1)
+
+        time.sleep(0.3)
+
+
+# Flask 웹 실행
 t = threading.Thread(target=start_flask)
 t.daemon = True
 t.start()
 
-# ---------------------------------------------------------
-# 메인 실행
-# ---------------------------------------------------------
+
+# 메인 
 try:
     main_loop()
 except KeyboardInterrupt:
