@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Feeder Control</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f7f7f7;
+            padding: 40px;
+        }
+        .box {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 300px;
+            margin: auto;
+            box-shadow: 0px 0px 15px #ccc;
+        }
+        input {
+            width: 80px;
+            padding: 5px;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 15px;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        p { font-size: 16px; margin: 5px 0; }
+        .status { margin-top: 20px; }
+    </style>
+</head>
+
+<body>
+    <div class="box">
+        <h2>Time Settings</h2>
+
+        <form method="post">
+            HOUR: <input type="number" name="hour" min="0" max="23" value="{{schedule.hour}}"><br>
+            MINUTE: <input type="number" name="minute" min="0" max="59" value="{{schedule.minute}}"><br>
+            <button>SAVE</button>
+        </form>
+
+        <div class="status">
+            <p>Current Time: <span id="current_time">--:--</span></p>
+            <p>Next Feeding: <span id="next_time">--:--</span></p>
+            <p>Distance: <span id="distance">0</span> cm</p>
+            <p>Feeding Now: <span id="feeding">NO</span></p>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus() {
+            fetch("/status")
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("current_time").innerText = data.current_time;
+                document.getElementById("next_time").innerText = data.next_time;
+                document.getElementById("distance").innerText = data.distance.toFixed(1);
+                document.getElementById("feeding").innerText = data.feeding ? "YES" : "NO";
+            });
+        }
+
+        // 1초마다 상태 갱신
+        setInterval(updateStatus, 1000);
+        window.onload = updateStatus;
+    </script>
+</body>
+</html>
