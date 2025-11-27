@@ -1,4 +1,4 @@
-setInterval(() => {
+function updateStatus() {
     fetch("/status")
         .then(res => res.json())
         .then(data => {
@@ -7,14 +7,8 @@ setInterval(() => {
             document.getElementById("status").innerText = data.status;
             document.getElementById("remaining").innerText = data.remaining;
         });
-}, 1000);
+}
 
-document.getElementById("timeForm").onsubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-
-    fetch("/set", {
-        method: "POST",
-        body: formData
-    }).then(() => alert("Saved!"));
-};
+// 1초마다 자동 갱신
+setInterval(updateStatus, 1000);
+updateStatus();
