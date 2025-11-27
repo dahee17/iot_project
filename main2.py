@@ -8,9 +8,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 app = Flask(__name__)
 SCHEDULE_FILE = "./schedule.json"
 
-# -------------------
-# GPIO 핀 설정
-# -------------------
+
 SERVO_PIN = 18
 BUZZER_PIN = 15
 LED_PIN = 14
@@ -29,11 +27,9 @@ servo.start(0)
 
 feeding_status = "Idle"
 remaining_text = ""
-beeped = False  # 초음파 근접 부저 한 번만 울리도록
+beeped = False  
 
-# -------------------
-# Schedule 읽고 쓰기
-# -------------------
+
 def load_schedule():
     try:
         with open(SCHEDULE_FILE, "r") as f:
@@ -45,13 +41,11 @@ def save_schedule(h, m):
     with open(SCHEDULE_FILE, "w") as f:
         json.dump({"hour":h,"minute":m}, f)
 
-# -------------------
-# Servo 제어 (떨림 방지)
-# -------------------
+
 def servo_set(dc):
     servo.ChangeDutyCycle(dc)
     time.sleep(1)
-    servo.ChangeDutyCycle(0)  # 떨림 방지
+    servo.ChangeDutyCycle(0) 
 
 def servo_open():
     servo_set(7)
@@ -59,9 +53,7 @@ def servo_open():
 def servo_close():
     servo_set(2)
 
-# -------------------
-# Buzzer + LED 멜로디
-# -------------------
+
 def play_melody_with_led():
     global feeding_status
     feeding_status = "Feeding"
@@ -84,9 +76,7 @@ def play_melody_with_led():
     buz.stop()
     GPIO.output(LED_PIN, 0)
 
-# -------------------
-# 초음파 거리 측정
-# -------------------
+
 def get_distance():
     GPIO.output(TRIG, 1)
     time.sleep(0.00001)
@@ -103,9 +93,8 @@ def get_distance():
     distance = (end - start) * 34300 / 2
     return distance
 
-# -------------------
-# Main Loop
-# -------------------
+
+# Main 
 def main_loop():
     global feeding_status, remaining_text, beeped
 
@@ -116,7 +105,6 @@ def main_loop():
         now_minutes = now.hour*60 + now.minute
         remaining = max(target_minutes - now_minutes, 0)
 
-        # 초음파 거리 확인
         dist = get_distance()
         if dist < 15:
             feeding_status = "Countdown"
@@ -128,13 +116,13 @@ def main_loop():
                 GPIO.output(BUZZER_PIN, 1)
                 time.sleep(0.2)
                 GPIO.output(BUZZER_PIN, 0)
-                beeped = True  # 한 번 울림
+                beeped = True 
             time.sleep(0.3)
             continue
         else:
-            beeped = False  # 거리 멀어지면 다시 울릴 수 있음
+            beeped = False 
 
-        # 배급 시간 도달
+
         if now.hour == sc["hour"] and now.minute == sc["minute"] and now.second == 0:
             feeding_status = "Feeding"
             remaining_text = ""
@@ -153,9 +141,7 @@ def main_loop():
 
         time.sleep(0.5)
 
-# -------------------
-# Flask Routes
-# -------------------
+
 @app.route("/")
 def index():
     schedule = load_schedule()
@@ -179,9 +165,6 @@ def status():
         "remaining": remaining_text
     })
 
-# -------------------
-# Flask 실행 스레드
-# -------------------
 def start_flask():
     app.run(host="0.0.0.0", port=5000, debug=False)
 
@@ -189,9 +172,7 @@ t = threading.Thread(target=start_flask)
 t.daemon = True
 t.start()
 
-# -------------------
-# 메인 루프
-# -------------------
+
 try:
     main_loop()
 except KeyboardInterrupt:
