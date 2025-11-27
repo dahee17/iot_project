@@ -1,50 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>Feeding Control</title>
-    <script src="/static/script.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<title>Pet Feeder</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
+<style>
+body { font-family: Arial; background:#f7f7f7; padding:30px; }
+.container { max-width: 400px; margin:auto; background:white; padding:20px; border-radius:12px; box-shadow:0 0 15px #ccc;}
+h2 { text-align:center; }
+input { width:60px; padding:5px; margin:5px; }
+button { padding:8px 12px; border:none; background:#4CAF50; color:white; border-radius:5px; cursor:pointer; }
+.status-box { margin-top:20px; padding:10px; background:#eee; border-radius:8px; text-align:center; }
+</style>
 </head>
+<body>
+<div class="container">
+    <h2>Feeder Settings</h2>
+    <form id="timeForm" method="post" action="/set">
+        HOUR: <input type="number" name="hour" min="0" max="23" value="{{schedule.hour}}">
+        MINUTE: <input type="number" name="minute" min="0" max="59" value="{{schedule.minute}}">
+        <button type="submit">SAVE</button>
+    </form>
 
-<body class="bg-gray-100 p-10">
-    <div class="max-w-4xl mx-auto grid grid-cols-2 gap-10">
-
-        <!-- Time Setting -->
-        <div class="bg-white p-8 rounded-xl shadow">
-            <h2 class="text-2xl font-bold mb-4">Set Feeding Time</h2>
-
-            <form id="timeForm" class="flex flex-col space-y-4">
-                <div>
-                    <label class="font-semibold">Hour</label>
-                    <input type="number" name="hour" min="0" max="23"
-                           value="{{schedule.hour}}"
-                           class="border p-2 rounded w-24">
-                </div>
-
-                <div>
-                    <label class="font-semibold">Minute</label>
-                    <input type="number" name="minute" min="0" max="59"
-                           value="{{schedule.minute}}"
-                           class="border p-2 rounded w-24">
-                </div>
-
-                <button class="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded">
-                    Save
-                </button>
-            </form>
-        </div>
-
-        <!-- Status -->
-        <div class="bg-white p-8 rounded-xl shadow">
-            <h2 class="text-2xl font-bold mb-4">Status</h2>
-
-            <p><strong>Current Time:</strong> <span id="current_time"></span></p>
-            <p><strong>Feeding Time:</strong> <span id="schedule"></span></p>
-            <p><strong>Status:</strong> <span id="status"></span></p>
-            <p><strong>Remaining:</strong> <span id="remaining"></span></p>
-        </div>
-
+    <div class="status-box">
+        <p>Current Time: <span id="current_time">--:--:--</span></p>
+        <p>Feeding Time: <span id="schedule">{{schedule.hour}}:{{schedule.minute}}</span></p>
+        <p>Status: <span id="status">Idle</span></p>
+        <p>Remaining: <span id="remaining">--</span></p>
     </div>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
