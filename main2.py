@@ -8,14 +8,21 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 app = Flask(__name__)
 SCHEDULE_FILE = "./schedule.json"
 
+# -------------------
+# GPIO 핀 설정
+# -------------------
 SERVO_PIN = 18
 BUZZER_PIN = 15
 LED_PIN = 14
+TRIG = 23
+ECHO = 24
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(SERVO_PIN, GPIO.OUT)
 GPIO.setup(BUZZER_PIN, GPIO.OUT)
 GPIO.setup(LED_PIN, GPIO.OUT)
+GPIO.setup(TRIG, GPIO.OUT)
+GPIO.setup(ECHO, GPIO.IN)
 
 servo = GPIO.PWM(SERVO_PIN, 50)
 servo.start(0)
@@ -23,7 +30,9 @@ servo.start(0)
 feeding_status = "Idle"
 remaining_text = ""
 
-
+# -------------------
+# Schedule 읽고 쓰기
+# -------------------
 def load_schedule():
     try:
         with open(SCHEDULE_FILE, "r") as f:
@@ -35,20 +44,28 @@ def save_schedule(h, m):
     with open(SCHEDULE_FILE, "w") as f:
         json.dump({"hour":h,"minute":m}, f)
 
+# -------------------
+# Servo 제어 (떨림 방지)
+# -------------------
+def servo_set(dc):
+    servo.ChangeDutyCycle(dc)
+    time.sleep(1)
+    servo.ChangeDutyCycle(0)  # 떨림 방지
 
 def servo_open():
-    servo.ChangeDutyCycle(7)
-    time.sleep(1)
+    servo_set(7)
 
 def servo_close():
-    servo.ChangeDutyCycle(2)
-    time.sleep(1)
+    servo_set(2)
 
+# -------------------
+# Buzzer + LED 멜로디
+# -------------------
 def play_melody_with_led():
     global feeding_status
     feeding_status = "Feeding"
-
     GPIO.output(LED_PIN, 1)
+
     buz = GPIO.PWM(BUZZER_PIN, 440)
     buz.start(50)
 
@@ -59,12 +76,31 @@ def play_melody_with_led():
         (523, 0.4)
     ]
 
-    for freq, duration in notes:
+    for freq, dur in notes:
         buz.ChangeFrequency(freq)
-        time.sleep(duration)
+        time.sleep(dur)
 
     buz.stop()
     GPIO.output(LED_PIN, 0)
+
+# -------------------
+# 초음파 거리 측정
+# -------------------
+def get_distance():
+    GPIO.output(TRIG, 1)
+    time.sleep(0.00001)
+    GPIO.output(TRIG, 0)
+
+    start = time.time()
+    end = time.time()
+
+    while GPIO.input(ECHO) == 0:
+        start = time.time()
+    while GPIO.input(ECHO) == 1:
+        end = time.time()
+
+    distance = (end - start) * 34300 / 2
+    return distance
 
 # -------------------
 # Main Loop
@@ -79,7 +115,20 @@ def main_loop():
         now_minutes = now.hour*60 + now.minute
         remaining = max(target_minutes - now_minutes, 0)
 
-        # Feeding 시간 도달
+        # 초음파 거리 확인
+        dist = get_distance()
+        if dist < 15:
+            feeding_status = "Countdown"
+            h = remaining // 60
+            m = remaining % 60
+            remaining_text = f"{h}h {m}m left"
+            GPIO.output(BUZZER_PIN, 1)
+            time.sleep(0.2)
+            GPIO.output(BUZZER_PIN, 0)
+            time.sleep(0.3)
+            continue
+
+        # 배급 시간 도달
         if now.hour == sc["hour"] and now.minute == sc["minute"] and now.second == 0:
             feeding_status = "Feeding"
             remaining_text = ""
@@ -91,16 +140,10 @@ def main_loop():
             time.sleep(1)
             continue
 
-        # Countdown 표시
-        if remaining > 0:
-            feeding_status = "Countdown"
-            h = remaining // 60
-            m = remaining % 60
-            remaining_text = f"{h}h {m}m left"
-        else:
-            if feeding_status not in ["Feeding","Completed"]:
-                feeding_status = "Idle"
-                remaining_text = ""
+        # Idle 상태
+        if feeding_status not in ["Feeding","Completed","Countdown"]:
+            feeding_status = "Idle"
+            remaining_text = ""
 
         time.sleep(0.5)
 
@@ -130,7 +173,9 @@ def status():
         "remaining": remaining_text
     })
 
-
+# -------------------
+# Flask 실행 스레드
+# -------------------
 def start_flask():
     app.run(host="0.0.0.0", port=5000, debug=False)
 
@@ -138,6 +183,9 @@ t = threading.Thread(target=start_flask)
 t.daemon = True
 t.start()
 
+# -------------------
+# 메인 루프
+# -------------------
 try:
     main_loop()
 except KeyboardInterrupt:
