@@ -3,23 +3,19 @@ import time
 import threading
 import json
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 
 app = Flask(__name__)
-SCHEDULE_FILE = "schedule.json"
+SCHEDULE_FILE = "./schedule.json"
 
 SERVO_PIN = 18
 BUZZER_PIN = 15
 LED_PIN = 14
-TRIG = 23
-ECHO = 24
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(SERVO_PIN, GPIO.OUT)
 GPIO.setup(BUZZER_PIN, GPIO.OUT)
 GPIO.setup(LED_PIN, GPIO.OUT)
-GPIO.setup(TRIG, GPIO.OUT)
-GPIO.setup(ECHO, GPIO.IN)
 
 servo = GPIO.PWM(SERVO_PIN, 50)
 servo.start(0)
@@ -27,28 +23,26 @@ servo.start(0)
 feeding_status = "Idle"
 remaining_text = ""
 
+
 def load_schedule():
-    with open(SCHEDULE_FILE, "r") as f:
-        return json.load(f)
+    try:
+        with open(SCHEDULE_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return {"hour":0,"minute":0}
 
 def save_schedule(h, m):
     with open(SCHEDULE_FILE, "w") as f:
-        json.dump({"hour": h, "minute": m}, f)
+        json.dump({"hour":h,"minute":m}, f)
 
-def get_distance():
-    GPIO.output(TRIG, 1)
-    time.sleep(0.00001)
-    GPIO.output(TRIG, 0)
 
-    start = time.time()
-    end = time.time()
+def servo_open():
+    servo.ChangeDutyCycle(7)
+    time.sleep(1)
 
-    while GPIO.input(ECHO) == 0:
-        start = time.time()
-    while GPIO.input(ECHO) == 1:
-        end = time.time()
-
-    return (end - start) * 34300 / 2
+def servo_close():
+    servo.ChangeDutyCycle(2)
+    time.sleep(1)
 
 def play_melody_with_led():
     global feeding_status
@@ -72,34 +66,21 @@ def play_melody_with_led():
     buz.stop()
     GPIO.output(LED_PIN, 0)
 
-def servo_open():
-    servo.ChangeDutyCycle(7)
-    time.sleep(1)
-
-def servo_close():
-    servo.ChangeDutyCycle(2)
-    time.sleep(1)
-
+# -------------------
+# Main Loop
+# -------------------
 def main_loop():
     global feeding_status, remaining_text
 
     while True:
         sc = load_schedule()
         now = datetime.now()
-        target_minutes = sc["hour"] * 60 + sc["minute"]
-        now_minutes = now.hour * 60 + now.minute
+        target_minutes = sc["hour"]*60 + sc["minute"]
+        now_minutes = now.hour*60 + now.minute
         remaining = max(target_minutes - now_minutes, 0)
 
-        dist = get_distance()
-        if dist < 15:
-            feeding_status = "Countdown"
-            h = remaining // 60
-            m = remaining % 60
-            remaining_text = f"{h}h {m}m left"
-            time.sleep(0.5)
-            continue
-
-        if (now.hour == sc["hour"] and now.minute == sc["minute"] and now.second == 0):
+        # Feeding 시간 도달
+        if now.hour == sc["hour"] and now.minute == sc["minute"] and now.second == 0:
             feeding_status = "Feeding"
             remaining_text = ""
             play_melody_with_led()
@@ -110,14 +91,22 @@ def main_loop():
             time.sleep(1)
             continue
 
-        if feeding_status in ["Feeding", "Completed"]:
-            pass
+        # Countdown 표시
+        if remaining > 0:
+            feeding_status = "Countdown"
+            h = remaining // 60
+            m = remaining % 60
+            remaining_text = f"{h}h {m}m left"
         else:
-            feeding_status = "Idle"
-            remaining_text = ""
+            if feeding_status not in ["Feeding","Completed"]:
+                feeding_status = "Idle"
+                remaining_text = ""
 
-        time.sleep(0.2)
+        time.sleep(0.5)
 
+# -------------------
+# Flask Routes
+# -------------------
 @app.route("/")
 def index():
     schedule = load_schedule()
@@ -134,13 +123,13 @@ def set_time():
 def status():
     now = datetime.now()
     sc = load_schedule()
-
     return jsonify({
         "current_time": now.strftime("%H:%M:%S"),
         "schedule": f"{sc['hour']:02d}:{sc['minute']:02d}",
         "status": feeding_status,
         "remaining": remaining_text
     })
+
 
 def start_flask():
     app.run(host="0.0.0.0", port=5000, debug=False)
