@@ -29,6 +29,7 @@ servo.start(0)
 
 feeding_status = "Idle"
 remaining_text = ""
+beeped = False  # 초음파 근접 부저 한 번만 울리도록
 
 # -------------------
 # Schedule 읽고 쓰기
@@ -106,7 +107,7 @@ def get_distance():
 # Main Loop
 # -------------------
 def main_loop():
-    global feeding_status, remaining_text
+    global feeding_status, remaining_text, beeped
 
     while True:
         sc = load_schedule()
@@ -122,11 +123,16 @@ def main_loop():
             h = remaining // 60
             m = remaining % 60
             remaining_text = f"{h}h {m}m left"
-            GPIO.output(BUZZER_PIN, 1)
-            time.sleep(0.2)
-            GPIO.output(BUZZER_PIN, 0)
+            
+            if not beeped:
+                GPIO.output(BUZZER_PIN, 1)
+                time.sleep(0.2)
+                GPIO.output(BUZZER_PIN, 0)
+                beeped = True  # 한 번 울림
             time.sleep(0.3)
             continue
+        else:
+            beeped = False  # 거리 멀어지면 다시 울릴 수 있음
 
         # 배급 시간 도달
         if now.hour == sc["hour"] and now.minute == sc["minute"] and now.second == 0:
