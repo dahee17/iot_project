@@ -128,7 +128,7 @@ def set_time():
     h = int(request.form["hour"])
     m = int(request.form["minute"])
     save_schedule(h, m)
-    return "OK"
+    return redirect(url_for("index"))
 
 @app.route("/status")
 def status():
